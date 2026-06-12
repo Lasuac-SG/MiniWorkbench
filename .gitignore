@@ -1,0 +1,15 @@
+build/
+build2/
+.claude/
+.superpowers/
+.qt/
+.rcc/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+*.dir/
+*_autogen/
+*.exe
+*.dll
+*.manifest
