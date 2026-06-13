@@ -1,11 +1,17 @@
 #include "widget_config_model.h"
+#include "database_manager.h"
 
 WidgetConfigModel::WidgetConfigModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    // For testing Block 2, add some initial dummy widgets
-    addWidget("todo", 0, 0, 2, 2);
-    addWidget("heatmap", 2, 0, 3, 2);
+    m_widgets = DatabaseManager::instance().loadWidgets();
+    m_nextId = DatabaseManager::instance().getMaxWidgetId() + 1;
+
+    // Add default widgets if empty
+    if (m_widgets.isEmpty()) {
+        addWidget("todo", 0, 0, 2, 2);
+        addWidget("heatmap", 2, 0, 3, 2);
+    }
 }
 
 int WidgetConfigModel::rowCount(const QModelIndex &parent) const {
@@ -68,6 +74,7 @@ bool WidgetConfigModel::setData(const QModelIndex &index, const QVariant &value,
 
     if (changed) {
         emit dataChanged(index, index, {role});
+        DatabaseManager::instance().updateWidget(widget.id, widget.gridX, widget.gridY, widget.colSpan, widget.rowSpan);
         return true;
     }
     return false;
@@ -96,6 +103,7 @@ void WidgetConfigModel::updateWidgetGeometry(int id, int gridX, int gridY, int c
             if (changed) {
                 QModelIndex idx = index(i, 0);
                 emit dataChanged(idx, idx, {GridXRole, GridYRole, ColSpanRole, RowSpanRole});
+                DatabaseManager::instance().updateWidget(id, gridX, gridY, colSpan, rowSpan);
             }
             break;
         }
@@ -113,6 +121,8 @@ void WidgetConfigModel::addWidget(const QString &type, int gridX, int gridY, int
     w.rowSpan = rowSpan;
     m_widgets.append(w);
     endInsertRows();
+
+    DatabaseManager::instance().addWidget(w.id, w.type, w.gridX, w.gridY, w.colSpan, w.rowSpan);
 }
 
 void WidgetConfigModel::removeWidget(int id) {
@@ -121,6 +131,8 @@ void WidgetConfigModel::removeWidget(int id) {
             beginRemoveRows(QModelIndex(), i, i);
             m_widgets.removeAt(i);
             endRemoveRows();
+
+            DatabaseManager::instance().removeWidget(id);
             break;
         }
     }

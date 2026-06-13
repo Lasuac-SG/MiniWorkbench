@@ -8,7 +8,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Sql)
 
 # FetchContent for libgit2 (will be fully integrated in Block 4)
 include(FetchContent)
@@ -29,6 +29,8 @@ qt_add_executable(DesktopGeekDashboard
     src/window_manager.cpp
     src/widget_config_model.h
     src/widget_config_model.cpp
+    src/database_manager.h
+    src/database_manager.cpp
 )
 
 target_include_directories(DesktopGeekDashboard PRIVATE src)
@@ -46,6 +48,7 @@ target_link_libraries(DesktopGeekDashboard PRIVATE
     Qt6::Gui
     Qt6::Qml
     Qt6::Quick
+    Qt6::Sql
     libgit2package
 )
 

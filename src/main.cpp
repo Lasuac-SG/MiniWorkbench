@@ -1,11 +1,22 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QStandardPaths>
+#include <QDir>
+#include "database_manager.h"
 
 using namespace Qt::StringLiterals;
 
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+    app.setOrganizationName("DesktopGeekDashboard");
+    app.setApplicationName("DesktopGeekDashboard");
+
+    // Initialize database
+    QString dataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dataPath);
+    QString dbPath = dataPath + "/config.db";
+    DatabaseManager::instance().openDatabase(dbPath);
 
     QQmlApplicationEngine engine;
 
@@ -20,5 +31,8 @@ int main(int argc, char *argv[])
     }, Qt::QueuedConnection);
     engine.load(url);
 
-    return app.exec();
+    int ret = app.exec();
+
+    DatabaseManager::instance().closeDatabase();
+    return ret;
 }
