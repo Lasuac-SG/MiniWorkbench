@@ -31,9 +31,14 @@ qt_add_executable(DesktopGeekDashboard
     src/widget_config_model.cpp
     src/database_manager.h
     src/database_manager.cpp
+    src/git_analyzer.h
+    src/git_analyzer.cpp
 )
 
-target_include_directories(DesktopGeekDashboard PRIVATE src)
+target_include_directories(DesktopGeekDashboard PRIVATE
+    src
+    ${libgit2_SOURCE_DIR}/include
+)
 
 qt_add_qml_module(DesktopGeekDashboard
     URI GeekDashboard
@@ -49,6 +54,7 @@ target_link_libraries(DesktopGeekDashboard PRIVATE
     Qt6::Qml
     Qt6::Quick
     Qt6::Sql
+    Qt6::Concurrent
     libgit2package
 )
 
