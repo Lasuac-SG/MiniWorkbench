@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import GeekDashboard 1.0
 
 Item {
     id: root
@@ -37,10 +38,50 @@ Item {
                 color: "#3388FF"
                 radius: 8
 
+                Loader {
+                    anchors.fill: parent
+                    anchors.margins: 4
+                    sourceComponent: {
+                        if (model.type === "heatmap") return heatmapComponent
+                        return defaultComponent
+                    }
+                }
+            }
+
+            Component {
+                id: defaultComponent
                 Text {
                     anchors.centerIn: parent
                     text: model.type
                     color: "white"
+                }
+            }
+
+            Component {
+                id: heatmapComponent
+                Item {
+                    GitAnalyzer {
+                        id: gitAnalyzer
+                        Component.onCompleted: {
+                            // Automatically start analysis when loaded. In a real app,
+                            // repo path would come from config.
+                            gitAnalyzer.setRepositoryPath(".")
+                            gitAnalyzer.setFileExtensions([".cpp", ".h", ".qml"])
+
+                            // Last 30 days
+                            let until = new Date()
+                            let since = new Date()
+                            since.setDate(since.getDate() - 30)
+
+                            gitAnalyzer.setDateRange(since, until)
+                            gitAnalyzer.startAnalysis()
+                        }
+                    }
+
+                    HeatmapItem {
+                        anchors.fill: parent
+                        analyzer: gitAnalyzer
+                    }
                 }
             }
 

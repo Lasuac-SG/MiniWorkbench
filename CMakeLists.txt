@@ -33,6 +33,8 @@ qt_add_executable(DesktopGeekDashboard
     src/database_manager.cpp
     src/git_analyzer.h
     src/git_analyzer.cpp
+    src/heatmap_item.h
+    src/heatmap_item.cpp
 )
 
 target_include_directories(DesktopGeekDashboard PRIVATE

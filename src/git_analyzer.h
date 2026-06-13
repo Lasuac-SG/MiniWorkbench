@@ -6,6 +6,7 @@
 #include <QVector>
 #include <QDateTime>
 #include <QFutureWatcher>
+#include <qqmlregistration.h>
 
 struct DailyContribution {
     QString date;
@@ -20,15 +21,16 @@ Q_DECLARE_METATYPE(QVector<DailyContribution>)
 
 class GitAnalyzer : public QObject {
     Q_OBJECT
+    QML_ELEMENT
 public:
     explicit GitAnalyzer(QObject* parent = nullptr);
     ~GitAnalyzer() override;
 
-    void setRepositoryPath(const QString& path);
-    void setFileExtensions(const QStringList& extensions);
-    void setDateRange(const QDateTime& since, const QDateTime& until);
+    Q_INVOKABLE void setRepositoryPath(const QString& path);
+    Q_INVOKABLE void setFileExtensions(const QStringList& extensions);
+    Q_INVOKABLE void setDateRange(const QDateTime& since, const QDateTime& until);
 
-    void startAnalysis();
+    Q_INVOKABLE void startAnalysis();
 
 signals:
     void analysisFinished(QVector<DailyContribution> contributions);
