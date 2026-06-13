@@ -27,6 +27,8 @@ qt_add_executable(DesktopGeekDashboard
     src/main.cpp
     src/window_manager.h
     src/window_manager.cpp
+    src/widget_config_model.h
+    src/widget_config_model.cpp
 )
 
 target_include_directories(DesktopGeekDashboard PRIVATE src)
@@ -36,6 +38,7 @@ qt_add_qml_module(DesktopGeekDashboard
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/GridLayoutEngine.qml
 )
 
 target_link_libraries(DesktopGeekDashboard PRIVATE

@@ -38,6 +38,10 @@ Window {
         }
     }
 
+    WidgetConfigModel {
+        id: widgetModel
+    }
+
     // The visual UI element that we actually see and animate
     Rectangle {
         id: visualContainer
@@ -75,12 +79,49 @@ Window {
         // Inner content representation
         Text {
             anchors.centerIn: parent
-            text: root.isExpanded ? "Dashboard" : "..."
+            text: root.isExpanded ? "" : "..."
             color: root.textColor
-            opacity: root.isExpanded ? 1.0 : (visualContainer.width == root.collapsedWidth ? 1.0 : 0.0)
-            font.pixelSize: root.isExpanded ? 24 : 12
+            opacity: root.isExpanded ? 0.0 : (visualContainer.width == root.collapsedWidth ? 1.0 : 0.0)
+            font.pixelSize: 12
 
             Behavior on opacity { NumberAnimation { duration: 200 } }
+        }
+
+        Item {
+            id: expandedContent
+            anchors.fill: parent
+            anchors.margins: 20
+            opacity: root.isExpanded ? 1.0 : 0.0
+            visible: opacity > 0
+
+            Behavior on opacity { NumberAnimation { duration: 300 } }
+
+            Text {
+                text: "Dashboard " + (gridLayout.isEditMode ? "[Edit Mode]" : "")
+                color: root.textColor
+                font.pixelSize: 20
+                font.bold: true
+                y: 0
+            }
+
+            // Right click area to toggle edit mode
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.RightButton
+                onClicked: (mouse) => {
+                    if (mouse.button === Qt.RightButton) {
+                        gridLayout.isEditMode = !gridLayout.isEditMode
+                    }
+                }
+            }
+
+            GridLayoutEngine {
+                id: gridLayout
+                y: 40
+                width: parent.width
+                height: parent.height - 40
+                model: widgetModel
+            }
         }
     }
 
