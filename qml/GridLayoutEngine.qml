@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import GeekDashboard 1.0
 
 Item {
@@ -11,6 +12,10 @@ Item {
 
     // Switch to toggle edit mode
     property bool isEditMode: false
+
+    TodoModel {
+        id: sharedTodoModel
+    }
 
     Repeater {
         model: root.model
@@ -37,12 +42,14 @@ Item {
                 anchors.margins: 2
                 color: "#3388FF"
                 radius: 8
+                clip: true
 
                 Loader {
                     anchors.fill: parent
                     anchors.margins: 4
                     sourceComponent: {
                         if (model.type === "heatmap") return heatmapComponent
+                        if (model.type === "todo") return todoComponent
                         return defaultComponent
                     }
                 }
@@ -58,17 +65,101 @@ Item {
             }
 
             Component {
+                id: todoComponent
+                Item {
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 4
+
+                        Text {
+                            text: "Todo List"
+                            color: "white"
+                            font.bold: true
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        ListView {
+                            id: todoListView
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            model: sharedTodoModel
+                            clip: true
+                            spacing: 2
+                            delegate: Rectangle {
+                                width: ListView.view.width
+                                height: 30
+                                color: "transparent"
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    CheckBox {
+                                        checked: model.isCompleted
+                                        onClicked: sharedTodoModel.toggleTodo(index)
+                                        contentItem: Text {
+                                            text: model.title
+                                            color: "white"
+                                            font.strikeout: model.isCompleted
+                                            verticalAlignment: Text.AlignVCenter
+                                            leftPadding: 24
+                                        }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Button {
+                                        text: "X"
+                                        implicitWidth: 30
+                                        implicitHeight: 30
+                                        background: Rectangle {
+                                            color: "transparent"
+                                        }
+                                        contentItem: Text {
+                                            text: parent.text
+                                            color: "white"
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
+                                        onClicked: sharedTodoModel.removeTodo(index)
+                                    }
+                                }
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            TextField {
+                                id: todoInput
+                                Layout.fillWidth: true
+                                placeholderText: "New task..."
+                                onAccepted: {
+                                    if (text.trim() !== "") {
+                                        sharedTodoModel.addTodo(text)
+                                        text = ""
+                                    }
+                                }
+                            }
+                            Button {
+                                text: "+"
+                                implicitWidth: 30
+                                onClicked: {
+                                    if (todoInput.text.trim() !== "") {
+                                        sharedTodoModel.addTodo(todoInput.text)
+                                        todoInput.text = ""
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Component {
                 id: heatmapComponent
                 Item {
                     GitAnalyzer {
                         id: gitAnalyzer
                         Component.onCompleted: {
-                            // Automatically start analysis when loaded. In a real app,
-                            // repo path would come from config.
                             gitAnalyzer.setRepositoryPath(".")
                             gitAnalyzer.setFileExtensions([".cpp", ".h", ".qml"])
 
-                            // Last 30 days
                             let until = new Date()
                             let since = new Date()
                             since.setDate(since.getDate() - 30)
@@ -81,6 +172,7 @@ Item {
                     HeatmapItem {
                         anchors.fill: parent
                         analyzer: gitAnalyzer
+                        todoModel: sharedTodoModel
                     }
                 }
             }
@@ -93,15 +185,12 @@ Item {
 
                 onActiveChanged: {
                     if (!active) {
-                        // Drag ended, calculate new gridX and gridY
                         let newGridX = Math.round(widgetItem.x / (root.cellWidth + root.spacing))
                         let newGridY = Math.round(widgetItem.y / (root.cellHeight + root.spacing))
 
-                        // Prevent negative grid coordinates
                         if (newGridX < 0) newGridX = 0
                         if (newGridY < 0) newGridY = 0
 
-                        // Call C++ model to update geometry
                         root.model.updateWidgetGeometry(model.id, newGridX, newGridY, model.colSpan, model.rowSpan)
                     }
                 }

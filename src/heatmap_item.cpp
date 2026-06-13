@@ -2,11 +2,11 @@
 #include <QPen>
 #include <QBrush>
 #include <algorithm>
+#include <QMap>
 
 HeatmapItem::HeatmapItem(QQuickItem* parent)
     : QQuickPaintedItem(parent)
 {
-    // Important for transparent background / no border window scenarios
     setOpaquePainting(false);
 }
 
@@ -33,20 +33,70 @@ void HeatmapItem::setAnalyzer(GitAnalyzer* analyzer)
     emit analyzerChanged();
 }
 
+TodoModel* HeatmapItem::todoModel() const
+{
+    return m_todoModel;
+}
+
+void HeatmapItem::setTodoModel(TodoModel* todoModel)
+{
+    if (m_todoModel == todoModel)
+        return;
+
+    if (m_todoModel) {
+        disconnect(m_todoModel, &TodoModel::todoStatsChanged, this, &HeatmapItem::onTodoStatsChanged);
+    }
+
+    m_todoModel = todoModel;
+
+    if (m_todoModel) {
+        connect(m_todoModel, &TodoModel::todoStatsChanged, this, &HeatmapItem::onTodoStatsChanged);
+    }
+
+    emit todoModelChanged();
+    updateCombinedData();
+}
+
 void HeatmapItem::onAnalysisFinished(const QVector<DailyContribution>& contributions)
 {
-    m_contributions = contributions;
+    m_gitContributions = contributions;
+    updateCombinedData();
+}
 
-    // Calculate max score to normalize the heatmap colors
+void HeatmapItem::onTodoStatsChanged()
+{
+    updateCombinedData();
+}
+
+void HeatmapItem::updateCombinedData()
+{
+    m_combinedContributions = m_gitContributions;
+
+    if (m_todoModel) {
+        QMap<QString, int> todoStats = DatabaseManager::instance().getTodoCompletionsByDate();
+
+        // Merge into combined contributions
+        for (int i = 0; i < m_combinedContributions.size(); ++i) {
+            QString dateStr = m_combinedContributions[i].date;
+            // E.g., dateStr format might be "yyyy-MM-dd" depending on GitAnalyzer, let's assume it matches the DB date('now')
+            // GitAnalyzer generates "yyyy-MM-dd". SQLite date('now') also generates "yyyy-MM-dd".
+            int todoCount = todoStats.value(dateStr, 0);
+
+            // We use 'commits' space or additions to weight it.
+            // Let's just add it to commits directly as equivalent contribution.
+            // A todo completion is worth e.g. 1 commit.
+            m_combinedContributions[i].commits += todoCount;
+        }
+    }
+
     m_maxScore = 0;
-    for (const auto& cont : m_contributions) {
-        int score = cont.commits + cont.additions / 100; // basic heuristic
+    for (const auto& cont : m_combinedContributions) {
+        int score = cont.commits + cont.additions / 100;
         if (score > m_maxScore) {
             m_maxScore = score;
         }
     }
 
-    // Force repaint
     update();
 }
 
@@ -59,7 +109,7 @@ void HeatmapItem::reload()
 
 QColor HeatmapItem::getColorForScore(int score) const
 {
-    if (score == 0) return QColor(22, 27, 34); // github dark theme empty color
+    if (score == 0) return QColor(22, 27, 34);
 
     if (m_maxScore == 0) return QColor(22, 27, 34);
 
@@ -73,33 +123,26 @@ QColor HeatmapItem::getColorForScore(int score) const
 
 void HeatmapItem::paint(QPainter* painter)
 {
-    if (m_contributions.isEmpty()) {
+    if (m_combinedContributions.isEmpty()) {
         painter->setPen(QPen(QColor(100, 100, 100)));
         painter->drawText(boundingRect(), Qt::AlignCenter, "No contribution data");
         return;
     }
 
-    // Basic layout for the heatmap
-    // 7 rows (days of week), N columns (weeks)
     int rows = 7;
-    int cols = (m_contributions.size() + 6) / 7;
+    int cols = (m_combinedContributions.size() + 6) / 7;
 
     if (cols == 0) cols = 1;
 
-    // We leave some margin
     const qreal margin = 4.0;
     const qreal availableWidth = boundingRect().width() - 2 * margin;
     const qreal availableHeight = boundingRect().height() - 2 * margin;
 
-    // Calculate block size to fit exactly
-    // size * cols + spacing * (cols - 1) = availableWidth
-    // we use a fixed spacing
     const qreal spacing = 3.0;
 
     qreal blockSizeW = (availableWidth - spacing * (cols - 1)) / cols;
     qreal blockSizeH = (availableHeight - spacing * (rows - 1)) / rows;
 
-    // keep blocks square
     qreal blockSize = std::min(blockSizeW, blockSizeH);
 
     if (blockSize <= 0) return;
@@ -107,15 +150,13 @@ void HeatmapItem::paint(QPainter* painter)
     painter->setPen(Qt::NoPen);
 
     int dataIndex = 0;
-    // We assume data is sorted from oldest to newest.
-    // Standard git heatmap: weeks are columns (left to right), days are rows (top to bottom).
     for (int c = 0; c < cols; ++c) {
         for (int r = 0; r < rows; ++r) {
-            if (dataIndex >= m_contributions.size()) {
+            if (dataIndex >= m_combinedContributions.size()) {
                 break;
             }
 
-            const auto& cont = m_contributions[dataIndex];
+            const auto& cont = m_combinedContributions[dataIndex];
             int score = cont.commits + cont.additions / 100;
 
             QColor color = getColorForScore(score);
@@ -128,7 +169,6 @@ void HeatmapItem::paint(QPainter* painter)
                 blockSize
             );
 
-            // Draw a rounded rect
             painter->drawRoundedRect(rect, 2.0, 2.0);
 
             dataIndex++;

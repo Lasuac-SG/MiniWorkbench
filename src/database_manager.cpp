@@ -25,7 +25,9 @@ bool DatabaseManager::openDatabase(const QString& path) {
         qWarning() << "Failed to open database:" << m_db.lastError().text();
         return false;
     }
-    return createWidgetTable();
+    bool ok = createWidgetTable();
+    ok &= createTodoTable();
+    return ok;
 }
 
 void DatabaseManager::closeDatabase() {
@@ -123,4 +125,88 @@ int DatabaseManager::getMaxWidgetId() {
         return query.value(0).toInt();
     }
     return 0;
+}
+
+bool DatabaseManager::createTodoTable() {
+    QSqlQuery query(m_db);
+    QString createTableQuery = R"(
+        CREATE TABLE IF NOT EXISTS todos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            is_completed INTEGER NOT NULL DEFAULT 0,
+            completed_date TEXT
+        )
+    )";
+
+    if (!query.exec(createTableQuery)) {
+        qWarning() << "Failed to create todos table:" << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+QVector<TodoItem> DatabaseManager::loadTodos() {
+    QVector<TodoItem> todos;
+    QSqlQuery query("SELECT id, title, is_completed FROM todos ORDER BY id ASC", m_db);
+
+    while (query.next()) {
+        TodoItem item;
+        item.id = query.value(0).toLongLong();
+        item.title = query.value(1).toString();
+        item.isCompleted = query.value(2).toInt() != 0;
+        todos.append(item);
+    }
+    return todos;
+}
+
+qint64 DatabaseManager::addTodo(const QString& title) {
+    QSqlQuery query(m_db);
+    query.prepare("INSERT INTO todos (title, is_completed) VALUES (:title, 0)");
+    query.bindValue(":title", title);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to add todo:" << query.lastError().text();
+        return -1;
+    }
+    return query.lastInsertId().toLongLong();
+}
+
+bool DatabaseManager::removeTodo(qint64 id) {
+    QSqlQuery query(m_db);
+    query.prepare("DELETE FROM todos WHERE id = :id");
+    query.bindValue(":id", id);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to remove todo:" << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+bool DatabaseManager::updateTodoStatus(qint64 id, bool isCompleted) {
+    QSqlQuery query(m_db);
+    if (isCompleted) {
+        query.prepare("UPDATE todos SET is_completed = 1, completed_date = date('now', 'localtime') WHERE id = :id");
+    } else {
+        query.prepare("UPDATE todos SET is_completed = 0, completed_date = NULL WHERE id = :id");
+    }
+    query.bindValue(":id", id);
+
+    if (!query.exec()) {
+        qWarning() << "Failed to update todo status:" << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+QMap<QString, int> DatabaseManager::getTodoCompletionsByDate() {
+    QMap<QString, int> stats;
+    QSqlQuery query("SELECT completed_date, COUNT(*) FROM todos WHERE is_completed = 1 AND completed_date IS NOT NULL GROUP BY completed_date", m_db);
+
+    while (query.next()) {
+        QString date = query.value(0).toString();
+        int count = query.value(1).toInt();
+        stats.insert(date, count);
+    }
+    return stats;
 }

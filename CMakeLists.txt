@@ -35,6 +35,8 @@ qt_add_executable(DesktopGeekDashboard
     src/git_analyzer.cpp
     src/heatmap_item.h
     src/heatmap_item.cpp
+    src/todo_model.h
+    src/todo_model.cpp
 )
 
 target_include_directories(DesktopGeekDashboard PRIVATE
